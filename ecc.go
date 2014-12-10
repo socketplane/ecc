@@ -185,10 +185,18 @@ func Get(store string, key string) (string, int, bool) {
 	}
 }
 
-func Put(store string, key string, value string, oldValue string) error {
+const (
+	OK = iota
+	OUTDATED
+	ERROR
+)
+
+type eccerror int
+
+func Put(store string, key string, value string, oldValue string) eccerror {
 	existingValue, casIndex, ok := Get(store, key)
 	if ok && oldValue != existingValue {
-		return errors.New("Old Value is Not in sync")
+		return OUTDATED
 	}
 	url := fmt.Sprintf("%s%s/%s?cas=%d", CONSUL_KV_BASE_URL, store, key, casIndex)
 	log.Printf("Updating KV pair for %s %s %s %d", url, key, value, casIndex)
@@ -198,18 +206,20 @@ func Put(store string, key string, value string, oldValue string) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Error creating KV pair for ", url, err)
-		return errors.New("Error creating KV pair for " + url)
+		return ERROR
 	}
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	if string(body) == "false" {
-		// Try again
-		return Put(store, key, value, oldValue)
+		// Let the application retry based on return value
+		// return Put(store, key, value, oldValue)
+		return OUTDATED
 	}
-	return nil
+	return OK
 }
-func Delete(store string, key string) error {
+
+func Delete(store string, key string) eccerror {
 	url := fmt.Sprintf("%s%s/%s", CONSUL_KV_BASE_URL, store, key)
 	log.Printf("Deleting KV pair for %s", url)
 	req, err := http.NewRequest("DELETE", url, nil)
@@ -218,11 +228,11 @@ func Delete(store string, key string) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Error creating KV pair for ", url, err)
-		return errors.New("Error creating KV pair for " + url)
+		return ERROR
 	}
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	log.Println(string(body))
-	return nil
+	return OK
 }
