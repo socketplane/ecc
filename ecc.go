@@ -503,15 +503,45 @@ func RegisterForNodeUpdates(listener Listener) {
 	}
 }
 
-func RegisterForKeyUpdates(key string, listener Listener) {
-	wc := addListener(WATCH_TYPE_KEY, key, listener)
+func updateKeyListeners(idx uint64, key string, data interface{}) {
+	listeners := getListeners(WATCH_TYPE_KEY, key)
+	if listeners == nil {
+		return
+	}
+
+	var kv *consulapi.KVPair = nil
+	var val []byte = nil
+	updateType := NOTIFY_UPDATE_MODIFY
+
+	if data != nil {
+		kv = data.(*consulapi.KVPair)
+	}
+
+	if kv == nil {
+		updateType = NOTIFY_UPDATE_DELETE
+	} else {
+		updateType = NOTIFY_UPDATE_MODIFY
+		if idx == kv.CreateIndex {
+			updateType = NOTIFY_UPDATE_ADD
+		}
+		val = kv.Value
+	}
+
+	for _, listener := range listeners {
+		listener.NotifyKeyUpdate(NotifyUpdateType(updateType), key, val)
+	}
+}
+
+func RegisterForKeyUpdates(store string, key string, listener Listener) {
+	absKey := store + "/" + key
+	wc := addListener(WATCH_TYPE_KEY, absKey, listener)
 	if wc {
 		// Compile the watch parameters
 		params := make(map[string]interface{})
 		params["type"] = "key"
-		params["key"] = key
+		params["key"] = absKey
 		handler := func(idx uint64, data interface{}) {
-			fmt.Println("NOT IMPLEMENTED Key Update :", idx, data)
+			updateKeyListeners(idx, absKey, data)
 		}
 		register(params, handler)
 	}
