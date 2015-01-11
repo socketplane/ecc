@@ -29,6 +29,7 @@ import (
 
 var started bool
 var OfflineSupport bool = true
+var listener eccListener
 
 func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string) error {
 	watches = make(map[WatchType]watchData)
@@ -51,6 +52,7 @@ func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string
 		}
 	}
 	errCh := make(chan int)
+	go RegisterForNodeUpdates(listener)
 	go startConsul(serverMode, bootstrap, bindAddress, dataDir, errCh)
 
 	select {
@@ -58,7 +60,6 @@ func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string
 		return errors.New("Error starting Consul Agent")
 	case <-time.After(time.Second * 5):
 	}
-	go populateKVStoreFromCache()
 	return nil
 }
 
@@ -337,7 +338,7 @@ func deleteFromCache(storeName string, key string) eccerror {
 }
 
 func populateKVStoreFromCache() {
-	if !OfflineSupport {
+	if !OfflineSupport || started {
 		return
 	}
 	started = true
@@ -378,6 +379,20 @@ type Listener interface {
 	NotifyNodeUpdate(NotifyUpdateType, string)
 	NotifyKeyUpdate(NotifyUpdateType, string, []byte)
 	NotifyStoreUpdate(NotifyUpdateType, string, map[string][]byte)
+}
+
+type eccListener struct {
+}
+
+func (e eccListener) NotifyNodeUpdate(nType NotifyUpdateType, nodeAddress string) {
+	if nType == NOTIFY_UPDATE_ADD && !started {
+		populateKVStoreFromCache()
+	}
+}
+
+func (e eccListener) NotifyKeyUpdate(nType NotifyUpdateType, key string, data []byte) {
+}
+func (e eccListener) NotifyStoreUpdate(nType NotifyUpdateType, store string, data map[string][]byte) {
 }
 
 func contains(wtype WatchType, key string, elem interface{}) bool {
@@ -483,6 +498,7 @@ func updateNodeListeners(clusterNodes []*consulapi.Node) {
 			listener.NotifyNodeUpdate(NOTIFY_UPDATE_DELETE, deleteNode.Address)
 		}
 	}
+
 	for _, addNode := range toAdd {
 		for _, listener := range listeners {
 			listener.NotifyNodeUpdate(NOTIFY_UPDATE_ADD, addNode.Address)
