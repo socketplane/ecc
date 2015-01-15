@@ -77,6 +77,8 @@ func startConsul(serverMode bool, bootstrap bool, bindAddress string, dataDir st
 	if bindAddress != "" {
 		args = append(args, "-bind")
 		args = append(args, bindAddress)
+		args = append(args, "-advertise")
+		args = append(args, bindAddress)
 	}
 
 	ret := Execute(args...)
