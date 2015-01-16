@@ -2,14 +2,24 @@ package command
 
 import (
 	"flag"
-	"github.com/socketplane/ecc/Godeps/_workspace/src/github.com/armon/consul-api"
+	"os"
+
+	consulapi "github.com/socketplane/ecc/Godeps/_workspace/src/github.com/hashicorp/consul/api"
 	"github.com/socketplane/ecc/Godeps/_workspace/src/github.com/hashicorp/consul/command/agent"
 )
+
+// RPCAddrEnvName defines an environment variable name which sets
+// an RPC address if there is no -rpc-addr specified.
+const RPCAddrEnvName = "CONSUL_RPC_ADDR"
 
 // RPCAddrFlag returns a pointer to a string that will be populated
 // when the given flagset is parsed with the RPC address of the Consul.
 func RPCAddrFlag(f *flag.FlagSet) *string {
-	return f.String("rpc-addr", "127.0.0.1:8400",
+	defaultRPCAddr := os.Getenv(RPCAddrEnvName)
+	if defaultRPCAddr == "" {
+		defaultRPCAddr = "127.0.0.1:8400"
+	}
+	return f.String("rpc-addr", defaultRPCAddr,
 		"RPC address of the Consul agent")
 }
 
@@ -33,6 +43,9 @@ func HTTPClient(addr string) (*consulapi.Client, error) {
 // HTTPClientDC returns a new Consul HTTP client with the given address and datacenter
 func HTTPClientDC(addr, dc string) (*consulapi.Client, error) {
 	conf := consulapi.DefaultConfig()
+	if envAddr := os.Getenv("CONSUL_HTTP_ADDR"); envAddr != "" {
+		addr = envAddr
+	}
 	conf.Address = addr
 	conf.Datacenter = dc
 	return consulapi.NewClient(conf)

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/socketplane/ecc/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/socketplane/ecc/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 )
 
 func TestValidateUserEventParams(t *testing.T) {
