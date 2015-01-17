@@ -3,8 +3,8 @@ package json
 import (
 	"sync"
 
+	"github.com/socketplane/ecc/Godeps/_workspace/src/github.com/hashicorp/go-multierror"
 	"github.com/socketplane/ecc/Godeps/_workspace/src/github.com/hashicorp/hcl/hcl"
-	"github.com/socketplane/ecc/Godeps/_workspace/src/github.com/hashicorp/terraform/helper/multierror"
 )
 
 // jsonErrors are the errors built up from parsing. These should not
